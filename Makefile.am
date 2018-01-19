@@ -1,5 +1,5 @@
 bin_PROGRAMS=	scrypt
-noinst_PROGRAMS=	tests/test_scrypt tests/valgrind/potential-memleaks
+noinst_PROGRAMS= tests/valgrind/potential-memleaks
 dist_man_MANS=$(scrypt_man_MANS)
 
 scrypt_SOURCES=		main.c					\
@@ -79,30 +79,13 @@ EXTRA_DIST = \
 	libcperciva/cpusupport/Build/cpusupport-X86-CPUID.c	\
 	libcperciva/cpusupport/Build/cpusupport-X86-SSE2.c	\
 	libcperciva/cpusupport/Build/cpusupport.sh		\
-	tests/test_scrypt.good					\
-	tests/test_scrypt_good.enc				\
 	tests/shared_test_functions.sh				\
-	tests/01-known-values.sh				\
-	tests/02-decrypt-reference-file.sh			\
-	tests/03-encrypt-decrypt-file.sh			\
-	tests/04-force-resources.sh				\
-	tests/05-system-scrypt-encrypt-decrypt.sh		\
+	tests/01-known-value.sh				\
+	tests/02-more-values.sh			\
+	tests/03-more-values-different-key.sh			\
+	tests/02-more-values-passwords.good				\
+	tests/03-more-values-different-key-passwords.good		\
 	tests/test_scrypt.sh
-
-tests_test_scrypt_SOURCES =	tests/test_scrypt.c			\
-			libcperciva/alg/sha256.c			\
-			libcperciva/alg/sha256.h			\
-			libcperciva/cpusupport/cpusupport_x86_sse2.c	\
-			libcperciva/util/insecure_memzero.c		\
-			libcperciva/util/insecure_memzero.h		\
-			libcperciva/util/warnp.c			\
-			libcperciva/util/warnp.h			\
-			lib/crypto/crypto_scrypt.c			\
-			lib/crypto/crypto_scrypt.h			\
-			lib/crypto/crypto_scrypt_smix.c			\
-			lib/crypto/crypto_scrypt_smix.h
-
-tests_test_scrypt_LDADD=	libscrypt_sse2.a
 
 tests_valgrind_potential_memleaks_SOURCES = tests/valgrind/potential-memleaks.c
 

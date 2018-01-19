@@ -1,5 +1,5 @@
 AC_PREREQ([2.69])
-AC_INIT([scrypt],[m4_esyscmd([sh get-version.sh])],
+AC_INIT([scrypt],1.2.1,
   [https://github.com/Tarsnap/scrypt],[scrypt],[http://www.tarsnap.com/scrypt/])
 AC_CONFIG_SRCDIR([lib/scryptenc/scryptenc.c])
 AC_CONFIG_AUX_DIR([config.aux])
@@ -36,7 +36,7 @@ AC_CHECK_MEMBERS([struct sysinfo.totalram, struct sysinfo.mem_unit], [], [],
 # to work.
 AC_CHECK_HEADERS([sys/param.h])
 
-# Check if we have <openssl/aes.h>, to fix the make failing when configure 
+# Check if we have <openssl/aes.h>, to fix the make failing when configure
 # passes.
 AC_CHECK_HEADERS([openssl/aes.h],,
   [AC_MSG_ERROR([Unable to find the openssl/aes.h header])])

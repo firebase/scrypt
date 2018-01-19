@@ -1,143 +1,93 @@
-The scrypt key derivation function
-----------------------------------
+# Firebase Authentication Password Hashing
+Firebase Authentication uses an internally modified version of scrypt to hash
+account passwords. Even when an account is uploaded with a password using a
+different algorithm, Firebase Auth will rehash the password the first time that
+account successfully logs in. Accounts downloaded from Firebase Authentication
+will only ever contain a password hash if one for this version of scrypt is
+available, or contain an empty password hash otherwise.
 
+See README_SCRYPT for more information about the scrypt library.
 
-The scrypt key derivation function was originally developed for use in the
-[Tarsnap online backup system](http://www.tarsnap.com/index.html) and is
-designed to be far more secure against hardware brute-force attacks than
-alternative functions such as [PBKDF2](http://en.wikipedia.org/wiki/PBKDF2) or
-[bcrypt](http://www.openbsd.org/papers/bcrypt-paper.ps).
+## Table of Contents
 
-We estimate that on modern (2009) hardware, if 5 seconds are spent computing a
-derived key, the cost of a hardware brute-force attack against `scrypt` is
-roughly 4000 times greater than the cost of a similar attack against bcrypt (to
-find the same password), and 20000 times greater than a similar attack against
-PBKDF2.
+ * [Finding the Password Hash Parameters](#finding-the-password-hash-parameters)
+ * [Downloading User Accounts](#downloading-user-accounts)
+ * [Building ](#building)
+ * [Password Hashing](#password-hashing)
 
-Details of the `scrypt` key derivation function are given in a paper which was
-presented at the [BSDCan'09](http://www.bsdcan.org/2009/) conference:
+## Finding the Password Hash Parameters
+Firebase generates unique password hash parameters for each Firebase project. To
+access these parameters, navigate to the 'Users' tab of the 'Authentication'
+section in the Firebase Console and select 'Password Hash Parameters' from the
+drop down in the upper-right hand corner of the users table.
 
-* Colin Percival, [Stronger Key Derivation via Sequential Memory-Hard
-  Functions](http://www.tarsnap.com/scrypt/scrypt.pdf), presented at BSDCan'09,
-  May 2009.
-* Conference presentation slides:
-  [PDF](http://www.tarsnap.com/scrypt/scrypt-slides.pdf).
+## Downloading User Accounts
+The `auth:export` command is usd to export user accounts to JSON and CSV files.
+Please visit https://firebase.google.com/docs/cli/auth to learn more about
+exporting your project's users accounts. For password hashing, you will need the
+Password Hash and Password Salt fields for the exported accounts.
 
-More details are given in the Internet Engineering Task Force
-(IETF)
-[RFC 7914: The scrypt Password-Based Key Derivation Function](https://tools.ietf.org/html/rfc7914).
+### Building
+To build scrypt, see the BUILDING file.
 
-It has been demonstrated that scrypt is maximally memory-hard:
-
-* J. Alwen, B. Chen, K. Pietrzak, L. Reyzin, S. Tessaro,
-  [Scrypt is Maximally Memory-Hard](http://eprint.iacr.org/2016/989),
-  Cryptology ePrint Archive: Report 2016/989.
-
-
-The scrypt encryption utility
------------------------------
-
+## Password Hashing
 A simple password-based encryption utility is available as a demonstration of
-the `scrypt` key derivation function. On modern hardware and with default
-parameters, the cost of cracking the password on a file encrypted by `scrypt
-enc` is approximately 100 billion times more than the cost of cracking the same
-password on a file encrypted by `openssl enc`; this means that a five-character
-password using `scrypt` is stronger than a ten-character password using
-`openssl`.
+the `scrypt` library. It can be invoked as `scrypt {key} {salt} {rounds}
+{memcost} [-P]`. The utility will ask for a plain text password and output a
+hash upon success. This hash should be encoded to base64 and compared to the
+password hash of the exported user account.
 
-The `scrypt` utility can be invoked as `scrypt enc infile [outfile]` to encrypt
-data (if `outfile` is not specified, the encrypted data is written to the
-standard output), or as `scrypt dec infile [outfile]` to decrypt data (if
-outfile is not specified, the decrypted data is written to the standard
-output). `scrypt` also supports three command-line options:
+* {key} - The signer key from the project's password hash parameters. This key
+  must be decoded from base64 before being passed to the utility.
+* {salt} - Concatenation of the password salt from the exported account and the
+  salt separator from the project's password hash parameters. Each half must be
+  decoded from base64 before concatenation.
+* {rounds} - The rounds parameter from the project's password hash parameters.
+* {memcost} - The mem_cost parameter from the project's password hash
+  parameters.
+* [-P] - An optional `-P` may also be supplied to allow for the raw text
+  password to be read from STDIN.
 
-* `-t maxtime` will instruct `scrypt` to spend at most maxtime seconds
-  computing the derived encryption key from the password; for encryption, this
-  value will determine how secure the encrypted data is, while for decryption
-  this value is used as an upper limit (if `scrypt` detects that it would take
-  too long to decrypt the data, it will exit with an error message).
-* `-m maxmemfrac` instructs `scrypt` to use at most the specified fraction of
-  the available RAM for computing the derived encryption key. For encryption,
-  increasing this value might increase the security of the encrypted data,
-  depending on the `maxtime` value; for decryption, this value is used as an
-  upper limit and may `cause` scrypt to exit with an error.
-* `-M maxmem` instructs `scrypt` to use at most the specified number of bytes
-  of RAM when computing the derived encryption key.
-
-If the encrypted data is corrupt, `scrypt dec` will exit with a non-zero
-status.  However, **`scrypt dec` may produce output before it determines that
-the encrypted data was corrupt**, so for applications which require data to be
-authenticated, you must store the output of `scrypt dec` in a temporary
-location and check `scrypt`'s exit code before using the decrypted data.
-
-The `scrypt` utility has been tested on FreeBSD, NetBSD, OpenBSD, Linux
-(Slackware, CentOS, Gentoo, Ubuntu), Solaris, OS X, Cygwin, and GNU Hurd. To
-build scrypt, extract the tarball and run `./configure` && `make`.
-
-* [scrypt version 1.2.0 source
-  tarball](https://www.tarsnap.com/scrypt/scrypt-1.2.0.tgz)
-* [GPG-signed SHA256 for scrypt version
-  1.2.0](https://www.tarsnap.com/scrypt/scrypt-sigs-1.2.0.asc) (signature
-  generated using Tarsnap [code signing
-  key](https://www.tarsnap.com/tarsnap-signing-key.asc))
-
-In addition, `scrypt` is available in the OpenBSD and FreeBSD ports trees and
-in NetBSD pkgsrc as `security/scrypt`.
-
-
-Using scrypt as a KDF
----------------------
-
-To use scrypt as a
-[key derivation function](https://en.wikipedia.org/wiki/Key_derivation_function)
-(KDF), take a
-look at the `lib/crypto/crypto_scrypt.h` header, which provides:
+Sample Password hash parameters from Firebase Console:
 
 ```
-/**
- * crypto_scrypt(passwd, passwdlen, salt, saltlen, N, r, p, buf, buflen):
- * Compute scrypt(passwd[0 .. passwdlen - 1], salt[0 .. saltlen - 1], N, r,
- * p, buflen) and write the result into buf.  The parameters r, p, and buflen
- * must satisfy r * p < 2^30 and buflen <= (2^32 - 1) * 32.  The parameter N
- * must be a power of 2 greater than 1.
- *
- * Return 0 on success; or -1 on error.
- */
-int crypto_scrypt(const uint8_t *, size_t, const uint8_t *, size_t, uint64_t,
-    uint32_t, uint32_t, uint8_t *, size_t);
+hash_config {
+  algorithm: SCRYPT,
+  base64_signer_key: jxspr8Ki0RYycVU8zykbdLGjFQ3McFUH0uiiTvC8pVMXAn210wjLNmdZJzxUECKbm0QsEmYUSDzZvpjeJ9WmXA==,
+  base64_salt_separator: Bw==,
+  rounds: 8,
+  mem_cost: 14,
+}
 ```
 
+Exporting a project's accounts:
 
-Building
---------
+```
+# Export a project's accounts to a local csv file
+$ firebase auth:export --project my-awesome-project-42be4 users.csv
+# Inspect the exported accounts
+$ cat users.csv
+kYi4EvWQlQTKSfnJ3dRSP6IH3ed2,user1@test.com,false,lSrfV15cpx95/sZS2W9c9Kp6i/LVgQNDNC/qzrCnh1SAyZvqmZqAjTdn3aoItz+VHjoZilo78198JAdRuid5lQ==,42xEC+ixf3L2lw==,Test
+User 1,,,,,,,,,,,,,,,,,,,1508893925000,1508893925000,,
+```
 
-:exclamation: We strongly recommend that people use the latest
-official release tarball on https://www.tarsnap.com/scrypt.html
+Using the utility:
 
-See the `BUILDING` file for more details (e.g., dealing with OpenSSL on OSX).
+```
+# Params from the project's password hash parameters
+base64_signer_key="jxspr8Ki0RYycVU8zykbdLGjFQ3McFUH0uiiTvC8pVMXAn210wjLNmdZJzxUECKbm0QsEmYUSDzZvpjeJ9WmXA=="
+base64_salt_separator="Bw=="
+rounds=8
+memcost=14
 
+# Params from the exported account
+base64_salt="42xEC+ixf3L2lw=="
 
-Testing
--------
+# The users raw text password
+password="user1password"
 
-A small test suite can be run with:
-
-    make test
-
-Memory-testing normal operations with valgrind (takes approximately 4 times as
-long as no valgrind tests) can be enabled with:
-
-    make test USE_VALGRIND=1
-
-Memory-testing all tests with valgrind (requires over 1 GB memory, and takes
-approximately 4 times as long as `USE_VALGRIND=1`) can be enabled with:
-
-    make test USE_VALGRIND=2
-
-
-Mailing list
-------------
-
-The scrypt key derivation function and the scrypt encryption utility are
-discussed on the <scrypt@tarsnap.com> mailing list.
-
+# Generate the hash
+# Expected output:
+# lSrfV15cpx95/sZS2W9c9Kp6i/LVgQNDNC/qzrCnh1SAyZvqmZqAjTdn3aoItz+VHjoZilo78198JAdRuid5lQ==
+echo `./scrypt "$base64_signer_key" "$base64_salt" "$base64_salt_separator" "$rounds" "$memcost" -P <<< "$password"`
+```

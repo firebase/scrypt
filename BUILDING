@@ -1,14 +1,3 @@
-Installing
-----------
-
-We strongly recommend that people use the latest official release tarball on
-https://www.tarsnap.com/scrypt.html, and build with:
-
-    ./configure
-    make
-    make install
-
-
 Platform-specific notes
 -----------------------
 
@@ -30,11 +19,10 @@ Platform-specific notes
       export LDFLAGS="-L/usr/local/opt/openssl/lib $LDFLAGS"
   and then close & re-open your terminal window.
 
-
 Building from git
 -----------------
 
-For experimental development from git, build with:
+To build from this git repository, build with:
 
     autoreconf -i
     ./configure
@@ -44,3 +32,36 @@ For experimental development from git, build with:
 - In order to support the `AX_CFLAGS_WARN_ALL` autoconf directive, you will
   need to install the autoconf archive.  On Debian systems, use the
   `autoconf-archive` package; on FreeBSD, use `devel/autoconf-archive`.
+
+Building from Official Release
+----------
+
+You can patch the official release tarball for scrypt 1.2.1 from
+https://www.tarsnap.com/scrypt/scrypt-1.2.1.tgz, using:
+    tar -xvzf scrypt-1.2.1.tgz
+    cp scrypt/main.c scrypt-1.2.1
+    cp scrypt/lib/scryptenc/scryptenc.c scrypt-1.2.1/lib/scryptenc/
+    cp scrypt/lib/scryptenc/scryptenc.h scrypt-1.2.1/lib/scryptenc/
+
+And then build the patched scrypt-1.2.1 with:
+
+    cd scrypt-1.2.1
+    ./configure
+    make
+
+Testing
+-------
+
+A small test suite can be run with:
+
+    make test
+
+Memory-testing normal operations with valgrind (takes approximately 4 times as
+long as no valgrind tests) can be enabled with:
+
+    make test USE_VALGRIND=1
+
+Memory-testing all tests with valgrind (requires over 1 GB memory, and takes
+approximately 4 times as long as `USE_VALGRIND=1`) can be enabled with:
+
+    make test USE_VALGRIND=2

@@ -1,5 +1,6 @@
 /*-
  * Copyright 2009 Colin Percival
+ * Copyright 2018 Google LLC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,29 +40,6 @@
  * this is not the code you are looking for.  You want to use the crypto_scrypt
  * function directly.
  */
-
-/**
- * The parameters maxmem, maxmemfrac, and maxtime used by all of these
- * functions are defined as follows:
- * maxmem - maximum number of bytes of storage to use for V array (which is
- *     by far the largest consumer of memory).  If this value is set to 0, no
- *     maximum will be enforced; any other value less than 1 MiB will be
- *     treated as 1 MiB.
- * maxmemfrac - maximum fraction of available storage to use for the V array,
- *     where "available storage" is defined as the minimum out of the
- *     RLIMIT_AS, RLIMIT_DATA. and RLIMIT_RSS resource limits (if any are
- *     set).  If this value is set to 0 or more than 0.5 it will be treated
- *     as 0.5; and this value will never cause a limit of less than 1 MiB to
- *     be enforced.
- * maxtime - maximum amount of CPU time to spend computing the derived keys,
- *     in seconds.  This limit is only approximately enforced; the CPU
- *     performance is estimated and parameter limits are chosen accordingly.
- * For the encryption functions, the parameters to the scrypt key derivation
- * function are chosen to make the key as strong as possible subject to the
- * specified limits; for the decryption functions, the parameters used are
- * compared to the computed limits and an error is returned if decrypting
- * the data would take too much memory or CPU time.
- */
 /**
  * Return codes from scrypt(enc|dec)_(buf|file):
  * 0	success
@@ -82,41 +60,40 @@
 
 /**
  * scryptenc_buf(inbuf, inbuflen, outbuf, passwd, passwdlen,
- *     maxmem, maxmemfrac, maxtime, verbose):
- * Encrypt inbuflen bytes from inbuf, writing the resulting inbuflen + 128
- * bytes to outbuf.
+ *     salt, rounds, memcost):
+ * Encrypt inbuflen bytes from inbuf, writing the resulting inbuflen
+ * bytes to outbuf. Salt length must be 32.
  */
 int scryptenc_buf(const uint8_t *, size_t, uint8_t *,
-    const uint8_t *, size_t, size_t, double, double, int);
+    const uint8_t *, size_t, const uint8_t *, uint32_t, uint32_t);
+
+/*
+ * scryptenc_buf_saltlen(inbuf, inbuflen, outbuf, passwd, passwdlen,
+ *     salt, rounds, memcost):
+ * Encrypt inbuflen bytes from inbuf, writing the resulting inbuflen
+ * bytes to outbuf. Salt length is variable.
+ */
+int scryptenc_buf_saltlen(const uint8_t *, size_t, uint8_t *,
+    const uint8_t *, size_t, const uint8_t *, size_t, uint32_t, uint32_t);
 
 /**
- * scryptdec_buf(inbuf, inbuflen, outbuf, outlen, passwd, passwdlen,
- *     maxmem, maxmemfrac, maxtime, verbose, force):
+ * scryptdec_buf(inbuf, inbuflen, outbuf, passwd, passwdlen,
+ *     salt, rounds, memcost):
  * Decrypt inbuflen bytes from inbuf, writing the result into outbuf and the
  * decrypted data length to outlen.  The allocated length of outbuf must
- * be at least inbuflen.  If ${force} is 1, do not check whether
- * decryption will exceed the estimated available memory or time.
+ * be at least inbuflen. Salt length must be 32.
  */
-int scryptdec_buf(const uint8_t *, size_t, uint8_t *, size_t *,
-    const uint8_t *, size_t, size_t, double, double, int, int);
+int scryptdec_buf(const uint8_t *, size_t, uint8_t *, const uint8_t *,
+                  size_t, const uint8_t *, uint32_t, uint32_t);
 
-/**
- * scryptenc_file(infile, outfile, passwd, passwdlen,
- *     maxmem, maxmemfrac, maxtime, verbose):
- * Read a stream from infile and encrypt it, writing the resulting stream to
- * outfile.
+/*
+ * scryptdec_buf_saltlen(inbuf, inbuflen, outbuf, passwd, passwdlen,
+ *     salt, rounds, memcost):
+ * Decrypt inbuflen bytes from inbuf, writing the result into outbuf and the
+ * decrypted data length to outlen.  The allocated length of outbuf must
+ * be at least inbuflen. Salt length is variable.
  */
-int scryptenc_file(FILE *, FILE *, const uint8_t *, size_t,
-    size_t, double, double, int);
-
-/**
- * scryptdec_file(infile, outfile, passwd, passwdlen,
- *     maxmem, maxmemfrac, maxtime, verbose, force):
- * Read a stream from infile and decrypt it, writing the resulting stream to
- * outfile.  If ${force} is 1, do not check whether decryption
- * will exceed the estimated available memory or time.
- */
-int scryptdec_file(FILE *, FILE *, const uint8_t *, size_t,
-    size_t, double, double, int, int);
+int scryptdec_buf_saltlen(const uint8_t *, size_t, uint8_t *, const uint8_t *,
+                  size_t, const uint8_t *, size_t, uint32_t, uint32_t);
 
 #endif /* !_SCRYPTENC_H_ */

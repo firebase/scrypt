@@ -1,4 +1,10 @@
 #!/bin/sh
+# Copyright 2018 Google LLC
+# Copyright 2009 Colin Percival
+#
+# Use of this source code is governed by a BSD-style
+# license that can be found in the COPYRIGHT file or at
+# https://developers.google.com/open-source/licenses/bsd
 
 ### Definitions
 #
@@ -266,3 +272,56 @@ run_scenarios() {
 		fi
 	done
 }
+single_password_test(){
+	hashedPassword=$(${c_valgrind_cmd} ${bindir}/scrypt "$base64_signer_key" "$base64_salt" "$base64_salt_separator" $rounds $memcost -P <<< "$password" )
+	echo $? > ${c_exitfile}
+	echo ""
+	echo "Password: $password"
+	echo "Output: $hashedPassword"
+	echo "Expected: $hashedPasswordRef"
+	echo ""
+
+	if [ "$hashedPassword" = "$hashedPasswordRef" ]; then
+		echo "0"
+	else
+		echo "1"
+	fi > ${c_exitfile}
+
+}
+
+bulk_password_test(){
+	count=0
+	good=0
+	cat ${reference_file} | while read line
+	do
+		# echo ${line}
+		count=$(expr ${count} + 1)
+		IFS=',' read password hashedPasswordRef base64_salt <<< "$line"
+		if [[ -z  $base64_salt  ]]; then
+			echo "empty line"
+			echo "0" > ${c_exitfile}
+			continue
+		fi
+
+		hashedPassword=$(${c_valgrind_cmd} ${bindir}/scrypt "$base64_signer_key" "$base64_salt" "$base64_salt_separator" $rounds $memcost -P <<< "$password" )
+		echo $? > ${c_exitfile}
+		echo ""
+		echo "Test Case #${count}"
+		echo "Password: $password"
+		echo "Output: $hashedPassword"
+		echo "Expected: $hashedPasswordRef"
+		echo ""
+		# The encrypted password should match the reference.
+
+		if [ "$hashedPassword" = "$hashedPasswordRef" ]; then
+			echo "0" > ${c_exitfile}
+			echo "MATCHED"
+
+		else
+			echo "1" > ${c_exitfile}
+			echo "FAILED"
+			exit
+		fi
+	done
+}
+

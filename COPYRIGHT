@@ -1,6 +1,7 @@
 The included code and documentation ("scrypt") is distributed under the
 following terms:
 
+Copyright 2018 Google LLC.  All rights reserved.
 Copyright 2005-2016 Colin Percival.  All rights reserved.
 Copyright 2005-2016 Tarsnap Backup Inc.  All rights reserved.
 Copyright 2014 Sean Kelly.  All rights reserved.
@@ -13,6 +14,10 @@ are met:
 2. Redistributions in binary form must reproduce the above copyright
    notice, this list of conditions and the following disclaimer in the
    documentation and/or other materials provided with the distribution.
+
+3. Neither the name of Google Inc. nor the names of its
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE

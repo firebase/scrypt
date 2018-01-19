@@ -1,10 +1,13 @@
 #!/bin/sh
+# Copyright 2018 Google LLC
+# Copyright 2009 Colin Percival
+#
+# Use of this source code is governed by a BSD-style
+# license that can be found in the COPYRIGHT file or at
+# https://developers.google.com/open-source/licenses/bsd
 
 # Build directory (allowing flexible out-of-tree builds).
 bindir=$1
-
-# Constants used in multiple scenarios.
-password="hunter2"
 
 # Find script directory and load helper functions.
 scriptdir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
@@ -16,9 +19,9 @@ if [ -z ${bindir} ]; then
 	printf "Attempting to use default values for in-source-tree build.\n"
 	bindir=".."
 fi
-
-# Find system scrypt, and ensure it supports -P.
-system_scrypt=$( find_system scrypt enc -P )
+	printf "Using scriptdir ${scriptdir}.\n"
+	printf "Using bindir ${bindir}.\n"
+	printf "Using bindir $(pwd ${bindir}).\n"
 
 # Check for optional valgrind.
 check_optional_valgrind

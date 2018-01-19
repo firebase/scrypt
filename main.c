@@ -1,5 +1,6 @@
 /*-
  * Copyright 2009 Colin Percival
+ * Copyright 2018 Google LLC
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,10 +26,15 @@
  */
 #include "scrypt_platform.h"
 
+#include <alloca.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <openssl/bio.h>
+#include <openssl/buffer.h>
+#include <openssl/evp.h>
 
 #include "getopt.h"
 #include "humansize.h"
@@ -37,190 +43,179 @@
 #include "scryptenc.h"
 #include "warnp.h"
 
-static void
-usage(void)
+void
+usage()
 {
+    fprintf(stderr, "usage: scrypt {key} {salt base} {salt separator} {rounds} {memcost} [-P]\n");
+    exit(1);
+}
 
-	fprintf(stderr,
-	    "usage: scrypt {enc | dec} [-f] [-M maxmem]"
-	    " [-m maxmemfrac]\n"
-	    "              [-t maxtime] [-v] [-P] infile [outfile]\n"
-	    "       scrypt --version\n");
-	exit(1);
+int
+decodeBase64(char* input, char** output) {
+    BIO *bio, *b64;
+
+    size_t inlen = strlen(input);
+    *output = malloc(inlen + 1);
+    (*output)[inlen] = '\0';
+
+    b64 = BIO_new(BIO_f_base64());
+    bio = BIO_new_mem_buf(input, -1);
+    bio = BIO_push(b64, bio);
+
+    BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
+    size_t outlen = BIO_read(bio, *output, strlen(input));
+    BIO_free_all(bio);
+
+    return outlen;
+}
+
+size_t
+encodeBase64(const unsigned char* input, size_t inlen, char** output) {
+    BIO *bio, *b64;
+    BUF_MEM *bioMemPtr;
+
+    b64 = BIO_new(BIO_f_base64());
+    bio = BIO_new(BIO_s_mem());
+    bio = BIO_push(b64, bio);
+
+    BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
+    BIO_write(bio, input, inlen);
+    BIO_flush(bio);
+    BIO_get_mem_ptr(bio, &bioMemPtr);
+    BIO_set_close(bio, BIO_NOCLOSE);
+
+    size_t outlen = bioMemPtr->length;
+    *output = malloc(outlen);
+    memcpy(*output, bioMemPtr->data, outlen);
+
+    BIO_free_all(bio);
+    return outlen;
 }
 
 int
 main(int argc, char *argv[])
 {
-	FILE * infile;
-	FILE * outfile;
-	int devtty = 1;
-	int dec = 0;
-	size_t maxmem = 0;
-	int force_resources = 0;
-	uint64_t maxmem64;
-	double maxmemfrac = 0.5;
-	double maxtime = 300.0;
-	const char * ch;
-	char * passwd;
-	int rc;
-	int verbose = 0;
+    int devtty = 1;
 
-	WARNP_INIT;
+    WARNP_INIT;
 
-	/* We should have "enc" or "dec" first. */
-	if (argc < 2)
-		usage();
-	if (strcmp(argv[1], "enc") == 0) {
-		maxmem = 0;
-		maxmemfrac = 0.125;
-		maxtime = 5.0;
-	} else if (strcmp(argv[1], "dec") == 0) {
-		dec = 1;
-	} else if (strcmp(argv[1], "--version") == 0) {
-		fprintf(stdout, "scrypt %s\n", PACKAGE_VERSION);
-		exit(0);
-	} else {
-		warn0("First argument must be 'enc' or 'dec'.\n");
-		usage();
-	}
-	argc--;
-	argv++;
+    if (argc < 5) {
+        usage();
+    }
 
-	/* Parse arguments. */
-	while ((ch = GETOPT(argc, argv)) != NULL) {
-		GETOPT_SWITCH(ch) {
-		GETOPT_OPT("-f"):
-			force_resources = 1;
-			break;
-		GETOPT_OPTARG("-M"):
-			if (humansize_parse(optarg, &maxmem64)) {
-				warn0("Could not parse the parameter to -M.");
-				exit(1);
-			}
-			if (maxmem64 > SIZE_MAX) {
-				warn0("The parameter to -M is too large.");
-				exit(1);
-			}
-			maxmem = (size_t)maxmem64;
-			break;
-		GETOPT_OPTARG("-m"):
-			maxmemfrac = strtod(optarg, NULL);
-			break;
-		GETOPT_OPTARG("-t"):
-			maxtime = strtod(optarg, NULL);
-			break;
-		GETOPT_OPT("-v"):
-			verbose = 1;
-			break;
-		GETOPT_OPT("-P"):
-			devtty = 0;
-			break;
-		GETOPT_MISSING_ARG:
-			warn0("Missing argument to %s\n", ch);
-			usage();
-		GETOPT_DEFAULT:
-			warn0("illegal option -- %s\n", ch);
-			usage();
-		}
-	}
-	argc -= optind;
-	argv += optind;
+    char   * key,  * salt,  * saltbase,  * saltsep;
+    size_t keylen, saltlen, saltbaselen, saltseplen;
+    int rounds;
+    int memcost;
 
-	/* We must have one or two parameters left. */
-	if ((argc < 1) || (argc > 2))
-		usage();
+    keylen = decodeBase64(argv[1], &key);
+    saltbaselen = decodeBase64(argv[2], &saltbase);
+    saltseplen = decodeBase64(argv[3], &saltsep);
+    rounds = atoi(argv[4]);
+    memcost = atoi(argv[5]);
+    argc-=5;
+    argv+=5;
 
-	/* If the input isn't stdin, open the file. */
-	if (strcmp(argv[0], "-")) {
-		if ((infile = fopen(argv[0], "rb")) == NULL) {
-			warnp("Cannot open input file: %s", argv[0]);
-			exit(1);
-		}
-	} else {
-		infile = stdin;
-	}
+    /* Parse arguments. */
+    const char * ch;
+    while ((ch = GETOPT(argc, argv)) != NULL) {
+        GETOPT_SWITCH(ch) {
+        GETOPT_OPT("-P"):
+            devtty = 0;
+            break;
+        GETOPT_MISSING_ARG:
+            warn0("Missing argument to %s\n", ch);
+            usage();
+        GETOPT_DEFAULT:
+            warn0("illegal option -- %s\n", ch);
+            usage();
+        }
+    }
+    argc -= optind;
+    argv += optind;
+    if (argc) {
+        usage();
+    }
 
-	/* If we have an output file, open it. */
-	if (argc > 1) {
-		if ((outfile = fopen(argv[1], "wb")) == NULL) {
-			warnp("Cannot open output file: %s", argv[1]);
-			exit(1);
-		}
-	} else {
-		outfile = stdout;
-	}
+    /* Prompt for a password. */
+    char * passwd;
+    if (readpass(&passwd, "Please enter passphrase",
+                 !devtty ? NULL : "Please confirm passphrase", devtty)) {
+        exit(1);
+    }
 
-	/* Prompt for a password. */
-	if (readpass(&passwd, "Please enter passphrase",
-	    (dec || !devtty) ? NULL : "Please confirm passphrase", devtty))
-		exit(1);
+    /* Prepare the salt */
+    saltlen = saltbaselen + saltseplen;
+    salt = malloc(saltlen);
+    memcpy(salt, saltbase, saltbaselen);
+    memcpy(salt + saltbaselen, saltsep, saltseplen);
 
-	/* Encrypt or decrypt. */
-	if (dec)
-		rc = scryptdec_file(infile, outfile, (uint8_t *)passwd,
-		    strlen(passwd), maxmem, maxmemfrac, maxtime, verbose,
-		    force_resources);
-	else
-		rc = scryptenc_file(infile, outfile, (uint8_t *)passwd,
-		    strlen(passwd), maxmem, maxmemfrac, maxtime, verbose);
+    /* Alloc a response buffer */
+    void * outbuf = alloca(keylen);
 
-	/* Zero and free the password. */
-	insecure_memzero(passwd, strlen(passwd));
-	free(passwd);
+    /* Hash the given parameters and put the output in the response buffer. */
+    int rc = scryptenc_buf_saltlen((uint8_t *) key, keylen,
+                                  (uint8_t *) outbuf,
+                                  (uint8_t *) passwd, strlen(passwd),
+                                  (uint8_t *) salt, saltlen,
+                                  rounds, memcost);
 
-	/* Close any files we opened. */
-	if (infile != stdin)
-		fclose(infile);
-	if (outfile != stdout)
-		fclose(outfile);
+    /* Zero and free the password. */
+    insecure_memzero(passwd, strlen(passwd));
+    free(passwd);
 
-	/* If we failed, print the right error message and exit. */
-	if (rc != 0) {
-		switch (rc) {
-		case 1:
-			warnp("Error determining amount of available memory");
-			break;
-		case 2:
-			warnp("Error reading clocks");
-			break;
-		case 3:
-			warnp("Error computing derived key");
-			break;
-		case 4:
-			warnp("Error reading salt");
-			break;
-		case 5:
-			warnp("OpenSSL error");
-			break;
-		case 6:
-			warnp("Error allocating memory");
-			break;
-		case 7:
-			warn0("Input is not valid scrypt-encrypted block");
-			break;
-		case 8:
-			warn0("Unrecognized scrypt format version");
-			break;
-		case 9:
-			warn0("Decrypting file would require too much memory");
-			break;
-		case 10:
-			warn0("Decrypting file would take too much CPU time");
-			break;
-		case 11:
-			warn0("Passphrase is incorrect");
-			break;
-		case 12:
-			warnp("Error writing file: %s",
-			    (argc > 1) ? argv[1] : "standard output");
-			break;
-		case 13:
-			warnp("Error reading file: %s", argv[0]);
-			break;
-		}
-		exit(1);
-	}
+    /* Free everything else */
+    free(key);
+    free(salt);
+    free(saltbase);
+    free(saltsep);
 
-	return (0);
+    /* Print the response buffer if the scrypt hash was successful. */
+    if (rc == 0) {
+        char* be64out;
+        size_t be64outlen = encodeBase64(outbuf, keylen, &be64out);
+        if(!fwrite(be64out, 1, be64outlen, stdout) == be64outlen) {
+            perror("fwrite");
+        }
+        free(be64out);
+        return (0);
+    } else {
+        /* If we failed, print the right error message and exit. */
+        switch (rc) {
+        case 1:
+            warnp("Error determining amount of available memory");
+            break;
+        case 2:
+            warnp("Error reading clocks");
+            break;
+        case 3:
+            warnp("Error computing derived key");
+            break;
+        case 4:
+            warnp("Error reading salt");
+            break;
+        case 5:
+            warnp("OpenSSL error");
+            break;
+        case 6:
+            warnp("Error allocating memory");
+            break;
+        case 7:
+            warn0("Input is not valid scrypt-encrypted block");
+            break;
+        case 8:
+            warn0("Unrecognized scrypt format version");
+            break;
+        case 9:
+            warn0("Decrypting file would require too much memory");
+            break;
+        case 10:
+            warn0("Decrypting file would take too much CPU time");
+            break;
+        case 11:
+            warn0("Passphrase is incorrect");
+            break;
+        }
+      exit(1);
+    }
 }
