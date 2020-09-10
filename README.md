@@ -14,6 +14,7 @@ See README_SCRYPT for more information about the scrypt library.
  * [Downloading User Accounts](#downloading-user-accounts)
  * [Building ](#building)
  * [Password Hashing](#password-hashing)
+ * [Other languages](#other-languages)
 
 ## Finding the Password Hash Parameters
 Firebase generates unique password hash parameters for each Firebase project. To
@@ -91,3 +92,8 @@ password="user1password"
 # lSrfV15cpx95/sZS2W9c9Kp6i/LVgQNDNC/qzrCnh1SAyZvqmZqAjTdn3aoItz+VHjoZilo78198JAdRuid5lQ==
 echo `./scrypt "$base64_signer_key" "$base64_salt" "$base64_salt_separator" "$rounds" "$memcost" -P <<< "$password"`
 ```
+
+## Other Languages
+Thank you to members of the Firebase community that have ported this library to other languages!  See the examples below:
+
+* [firebase-scrypt-java](https://github.com/SmartMoveSystems/firebase-scrypt-java) by [SmartMoveSystems](https://github.com/SmartMoveSystems)
