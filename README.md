@@ -97,3 +97,4 @@ echo `./scrypt "$base64_signer_key" "$base64_salt" "$base64_salt_separator" "$ro
 Thank you to members of the Firebase community that have ported this library to other languages!  See the examples below:
 
 * [firebase-scrypt-java](https://github.com/SmartMoveSystems/firebase-scrypt-java) by [SmartMoveSystems](https://github.com/SmartMoveSystems)
+* [firebase-scrypt-python](https://github.com/JaakkoL/firebase-scrypt-python) by [JaakkoL](https://github.com/JaakkoL)
